@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Viewer</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Log Viewer</h1>
+        <div class="table-container">
+            <table id="logTable">
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Level</th>
+                        <th>Time</th>
+                        <th>Code</th>
+                        <th>Message</th>
+                        <th>Context</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let lastLogTimestamp = '';
+
+        function formatTime(timestamp) {
+            // Extract date and time parts
+            const [date, time] = timestamp.split(' ');
+            return time || date; // Return time if available, otherwise date
+        }
+
+        function parseTimestamp(timestamp) {
+            // Parse timestamp in format "MM-DD HH:mm:ss"
+            const [datePart, timePart] = timestamp.split(' ');
+            if (!datePart || !timePart) return null;
+            
+            const [month, day] = datePart.split('-');
+            const [hours, minutes, seconds] = timePart.split(':');
+            
+            if (!month || !day || !hours || !minutes || !seconds) return null;
+            
+            const now = new Date();
+            const logDate = new Date(now.getFullYear(), parseInt(month) - 1, parseInt(day), 
+                                   parseInt(hours), parseInt(minutes), parseInt(seconds));
+            
+            // If the log date is in the future, it's probably from the previous year
+            if (logDate > now) {
+                logDate.setFullYear(now.getFullYear() - 1);
+            }
+            
+            return logDate;
+        }
+
+        function isRecent(timestamp) {
+            const logTime = parseTimestamp(timestamp);
+            if (!logTime) return false;
+            
+            const now = new Date();
+            const fiveMinutesAgo = new Date(now - 5 * 60 * 1000);
+            
+            // Compare timestamps
+            return logTime >= fiveMinutesAgo && logTime <= now;
+        }
+
+        function updateTable(logs) {
+            const tbody = document.getElementById('logTableBody');
+            tbody.innerHTML = '';
+            
+            // Reverse the array to show newest entries first
+            logs.reverse();
+            
+            let foundOldLog = false;
+            let hasNewLogs = false;
+            
+            logs.forEach((log, index) => {
+                const isRecentLog = isRecent(log.timestamp);
+                if (isRecentLog) hasNewLogs = true;
+                
+                // Add separator between recent and old logs
+                if (!isRecentLog && !foundOldLog && hasNewLogs) {
+                    foundOldLog = true;
+                    const separatorRow = document.createElement('tr');
+                    separatorRow.className = 'separator-row';
+                    separatorRow.innerHTML = `
+                        <td colspan="6">
+                            <span class="separator-label">Older than 5 minutes</span>
+                        </td>
+                    `;
+                    tbody.appendChild(separatorRow);
+                }
+                
+                const row = document.createElement('tr');
+                if (isRecentLog) {
+                    row.className = 'recent-log';
+                }
+
+                // Create the details button
+                const detailsBtn = document.createElement('button');
+                detailsBtn.className = 'details-btn';
+                detailsBtn.title = 'View Details';
+                detailsBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                detailsBtn.addEventListener('click', () => openDetails(log));
+
+                // Create the table cells
+                const cells = [
+                    createElement('td', '', [detailsBtn]),
+                    createElement('td', `level ${log.level.toLowerCase()}`, log.level),
+                    createElement('td', 'time', formatTime(log.timestamp)),
+                    createElement('td', 'code', log.json_code || ''),
+                    createElement('td', '', log.message || ''),
+                    createElement('td', '', log.json_log_context || '')
+                ];
+
+                // Add all cells to the row
+                cells.forEach(cell => row.appendChild(cell));
+                tbody.appendChild(row);
+            });
+        }
+
+        // Helper function to create table cells
+        function createElement(tag, className, content) {
+            const element = document.createElement(tag);
+            if (className) element.className = className;
+            if (typeof content === 'string') {
+                element.textContent = content;
+            } else if (Array.isArray(content)) {
+                content.forEach(child => element.appendChild(child));
+            }
+            return element;
+        }
+
+        function openDetails(logData) {
+            const detailsWindow = window.open('', '_blank');
+            const jsonPart = logData.json_part || '{}';
+            
+            let formattedJson;
+            try {
+                const jsonObj = JSON.parse(jsonPart);
+                formattedJson = JSON.stringify(jsonObj, null, 2);
+            } catch (e) {
+                formattedJson = jsonPart;
+            }
+
+            detailsWindow.document.write(`
+                <html>
+                <head>
+                    <title>Log Details</title>
+                    <style>
+                        body {
+                            font-family: -apple-system, system-ui, sans-serif;
+                            padding: 20px;
+                            background: #f5f5f5;
+                            line-height: 1.6;
+                        }
+                        .details-container {
+                            background: white;
+                            padding: 20px;
+                            border-radius: 8px;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        }
+                        .raw-log {
+                            background: #2d2d2d;
+                            color: #ffffff;
+                            padding: 15px;
+                            border-radius: 4px;
+                            margin-bottom: 20px;
+                            overflow-x: auto;
+                            white-space: pre-wrap;
+                            font-family: monospace;
+                        }
+                        .json-part {
+                            background: #1e1e1e;
+                            color: #e6db74;
+                            padding: 20px;
+                            font-size: 14px;
+                            line-height: 1.5;
+                        }
+                        .parsed-fields {
+                            background: #f8f9fa;
+                            padding: 15px;
+                            border-radius: 4px;
+                            overflow-x: auto;
+                        }
+                        .field {
+                            display: flex;
+                            border-bottom: 1px solid #eee;
+                            padding: 8px 0;
+                        }
+                        .field-name {
+                            font-weight: bold;
+                            width: 120px;
+                            color: #666;
+                        }
+                        .field-value {
+                            flex: 1;
+                            word-break: break-word;
+                        }
+                        h2 {
+                            color: #333;
+                            margin-bottom: 15px;
+                        }
+                        h3 {
+                            color: #666;
+                            font-size: 1.1em;
+                            margin: 15px 0 10px 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="details-container">
+                        <h2>Log Entry Details</h2>
+                        
+                        <h3>JSON Data</h3>
+                        <div class="raw-log json-part">${formattedJson}</div>
+                        
+                        <h3>Parsed Fields</h3>
+                        <div class="parsed-fields">
+                            <div class="field">
+                                <div class="field-name">Timestamp:</div>
+                                <div class="field-value">${logData.timestamp || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Level:</div>
+                                <div class="field-value">${logData.level || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Message:</div>
+                                <div class="field-value">${logData.message || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">File:</div>
+                                <div class="field-value">${logData.json_file || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Line:</div>
+                                <div class="field-value">${logData.json_line || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Class:</div>
+                                <div class="field-value">${logData.json_class || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Function:</div>
+                                <div class="field-value">${logData.json_function || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Code:</div>
+                                <div class="field-value">${logData.json_code || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Context:</div>
+                                <div class="field-value">${logData.json_log_context || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Request URI:</div>
+                                <div class="field-value">${logData.json_request_uri || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">Correlation ID:</div>
+                                <div class="field-value">${logData.json_correlation_id || 'N/A'}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-name">User Agent:</div>
+                                <div class="field-value">${logData.json_user_agent || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+
+        function fetchLogs() {
+            fetch('/logs')
+                .then(response => response.json())
+                .then(logs => {
+                    // Check if we have new logs
+                    const newestLog = logs[logs.length - 1];
+                    if (!newestLog || newestLog.timestamp === lastLogTimestamp) {
+                        return; // No new logs, don't update the table
+                    }
+                    
+                    // Update the last timestamp and table
+                    lastLogTimestamp = newestLog.timestamp;
+                    updateTable(logs);
+                })
+                .catch(error => console.error('Error fetching logs:', error));
+        }
+
+        // Initial fetch
+        fetchLogs();
+
+        // Refresh every 2 seconds
+        setInterval(fetchLogs, 2000);
+    </script>
+</body>
+</html> 
