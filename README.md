@@ -6,3 +6,5 @@
       -info
       -notice
       -debug
+
+-  check: http://localhost:1111/
