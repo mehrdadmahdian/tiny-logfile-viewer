@@ -87,11 +87,24 @@ func parseTimestamp(timestamp string) (time.Time, error) {
 		"2006-01-02T15:04:05.000Z",
 	}
 
+	// First try parsing with local timezone
 	for _, layout := range layouts {
-		if t, err := time.Parse(layout, timestamp); err == nil {
+		if t, err := time.ParseInLocation(layout, timestamp, time.Local); err == nil {
 			return t, nil
 		}
 	}
+
+	// If local parsing fails, try UTC layouts
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, timestamp); err == nil {
+			// Only convert to local if it's explicitly in UTC
+			if t.Location() == time.UTC {
+				return t.In(time.Local), nil
+			}
+			return t, nil
+		}
+	}
+
 	return time.Time{}, fmt.Errorf("could not parse timestamp: %s", timestamp)
 }
 
@@ -117,11 +130,25 @@ func parseLogLine(line string) (*LogEntry, error) {
 			}
 		}
 	}
+
+	// Normalize error levels
+	rawLevel = strings.TrimSpace(strings.ToUpper(rawLevel))
+	if rawLevel == "ERR" {
+		rawLevel = "ERROR"
+	}
+
 	timestamp := strings.TrimSpace(strings.TrimLeft(parts[0], "["))
 	parsedTime, err := parseTimestamp(timestamp)
 	isRecent := false
 	if err == nil {
-		isRecent = *highlightMinutes > 0 && time.Since(parsedTime) <= time.Duration(*highlightMinutes)*time.Minute
+		// Compare with current time in the same timezone
+		now := time.Now().In(parsedTime.Location())
+		duration := now.Sub(parsedTime)
+		if duration < 0 {
+			duration = -duration // Convert negative duration to positive
+		}
+		windowDuration := time.Duration(*highlightMinutes) * time.Minute
+		isRecent = *highlightMinutes > 0 && duration <= windowDuration
 	}
 
 	entry := &LogEntry{
@@ -304,7 +331,7 @@ func main() {
 	})
 
 	http.HandleFunc("/logs", func(w http.ResponseWriter, r *http.Request) {
-		entries, err := readLastNLines(logFile, 100)
+		entries, err := readLastNLines(logFile, 50)
 		if err != nil {
 			log.Printf("Error reading log file: %v", err)
 			http.Error(w, "Error reading log file", http.StatusInternalServerError)

@@ -32,11 +32,102 @@
             background-color: #4CAF50;
             color: white;
         }
+        .filter-group {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            background: white;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .select-all-btn {
+            padding: 6px 12px;
+            border: 2px solid #2196F3;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            background: white;
+            color: #2196F3;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+        .select-all-btn:hover {
+            background: #2196F3;
+            color: white;
+        }
+        .filter-btn.active {
+            color: white;
+        }
+        .filter-btn[data-level="INFO"].active { background-color: #2196F3; border-color: #2196F3; }
+        .filter-btn[data-level="WARN"].active { background-color: #FF9800; border-color: #FF9800; }
+        .filter-btn[data-level="NOTICE"].active { background-color: #9C27B0; border-color: #9C27B0; }
+        .filter-btn[data-level="DEBUG"].active { background-color: #4CAF50; border-color: #4CAF50; }
+        .filter-btn[data-level="ERROR"].active { background-color: #F44336; border-color: #F44336; }
+        .control-btn[data-action="refresh"] {
+            background-color: #FFC107;
+            color: black;
+        }
+        .control-btn[data-action="refresh"].active {
+            background-color: #4CAF50;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Log Viewer</h1>
+        
+        <div class="filter-group">
+            <button class="select-all-btn" onclick="toggleAllFilters()">
+                <i class="fas fa-check-double"></i>
+                Select All/None
+            </button>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-level="INFO" onclick="toggleFilter(this)">
+                    <i class="fas fa-info-circle"></i>
+                    INFO
+                </button>
+                <button class="filter-btn active" data-level="WARN" onclick="toggleFilter(this)">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    WARN
+                </button>
+                <button class="filter-btn active" data-level="NOTICE" onclick="toggleFilter(this)">
+                    <i class="fas fa-bell"></i>
+                    NOTICE
+                </button>
+                <button class="filter-btn active" data-level="DEBUG" onclick="toggleFilter(this)">
+                    <i class="fas fa-bug"></i>
+                    DEBUG
+                </button>
+                <button class="filter-btn active" data-level="ERROR" onclick="toggleFilter(this)">
+                    <i class="fas fa-times-circle"></i>
+                    ERROR/ERR
+                </button>
+            </div>
+        </div>
+
         <div class="table-container">
             <table id="logTable">
                 <thead>
@@ -60,15 +151,84 @@
             <i class="fas fa-highlighter"></i>
             Highlight Recent
         </button>
-        <button class="control-btn" onclick="fetchLogs()">
+        <button class="control-btn active" data-action="refresh" onclick="toggleAutoRefresh()">
             <i class="fas fa-sync"></i>
-            Refresh
+            Auto-Refresh
+        </button>
+        <button class="control-btn" onclick="fetchLogs()">
+            <i class="fas fa-redo"></i>
+            Refresh Now
         </button>
     </div>
 
     <script>
         let lastLogTimestamp = '';
         let highlightEnabled = true;
+        let autoRefreshEnabled = true;
+        let refreshInterval;
+        let activeFilters = {
+            'INFO': true,
+            'WARN': true,
+            'NOTICE': true,
+            'DEBUG': true,
+            'ERROR': true
+        };
+
+        function normalizeLevel(level) {
+            level = level.trim().toUpperCase();
+            return level === 'ERR' ? 'ERROR' : level;
+        }
+
+        function toggleAllFilters() {
+            const allActive = Object.values(activeFilters).every(v => v);
+            const newState = !allActive;
+            
+            Object.keys(activeFilters).forEach(level => {
+                activeFilters[level] = newState;
+                const btn = document.querySelector(`.filter-btn[data-level="${level}"]`);
+                if (btn) {
+                    btn.classList.toggle('active', newState);
+                }
+            });
+            
+            localStorage.setItem('activeFilters', JSON.stringify(activeFilters));
+            applyFilters();
+        }
+
+        // Load filter state from localStorage
+        function loadFilterState() {
+            const savedFilters = localStorage.getItem('activeFilters');
+            if (savedFilters) {
+                activeFilters = JSON.parse(savedFilters);
+                // Update button states
+                Object.entries(activeFilters).forEach(([level, active]) => {
+                    const btn = document.querySelector(`.filter-btn[data-level="${level}"]`);
+                    if (btn) {
+                        btn.classList.toggle('active', active);
+                    }
+                });
+            }
+        }
+
+        function toggleFilter(button) {
+            const level = button.getAttribute('data-level');
+            const isActive = button.classList.toggle('active');
+            activeFilters[level] = isActive;
+            
+            // Store filter state
+            localStorage.setItem('activeFilters', JSON.stringify(activeFilters));
+            
+            // Re-apply filters to current table
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const tbody = document.getElementById('logTableBody');
+            Array.from(tbody.getElementsByTagName('tr')).forEach(row => {
+                const level = normalizeLevel(row.querySelector('td:nth-child(2)').textContent.trim());
+                row.style.display = activeFilters[level] ? '' : 'none';
+            });
+        }
 
         function toggleHighlight() {
             highlightEnabled = !highlightEnabled;
@@ -122,6 +282,11 @@
 
                 cells.forEach(cell => row.appendChild(cell));
                 tbody.appendChild(row);
+
+                // Apply current filters
+                if (!activeFilters[log.level]) {
+                    row.style.display = 'none';
+                }
             });
         }
 
@@ -294,18 +459,47 @@
                 .catch(error => console.error('Error fetching logs:', error));
         }
 
-        // Load the highlight state from localStorage
-        const savedHighlightState = localStorage.getItem('highlightEnabled');
-        if (savedHighlightState !== null) {
-            highlightEnabled = savedHighlightState === 'true';
-            const btn = document.getElementById('highlightBtn');
-            if (!highlightEnabled) {
-                btn.classList.remove('active');
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            if (autoRefreshEnabled) {
+                refreshInterval = setInterval(fetchLogs, 2000);
             }
         }
 
-        fetchLogs();
-        setInterval(fetchLogs, 2000);
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = document.querySelector('.control-btn[data-action="refresh"]');
+            btn.classList.toggle('active');
+            localStorage.setItem('autoRefreshEnabled', autoRefreshEnabled);
+            startAutoRefresh();
+        }
+
+        // Load saved states when page loads
+        window.addEventListener('load', () => {
+            // Load highlight state
+            const savedHighlight = localStorage.getItem('highlightEnabled');
+            if (savedHighlight !== null) {
+                highlightEnabled = savedHighlight === 'true';
+                const btn = document.getElementById('highlightBtn');
+                btn.classList.toggle('active', highlightEnabled);
+            }
+            
+            // Load filter state
+            loadFilterState();
+
+            // Load auto-refresh state
+            const savedAutoRefresh = localStorage.getItem('autoRefreshEnabled');
+            if (savedAutoRefresh !== null) {
+                autoRefreshEnabled = savedAutoRefresh === 'true';
+                const btn = document.querySelector('.control-btn[data-action="refresh"]');
+                btn.classList.toggle('active', autoRefreshEnabled);
+            }
+
+            fetchLogs();
+            startAutoRefresh();
+        });
     </script>
 </body>
 </html> 
