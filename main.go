@@ -42,15 +42,17 @@ type LogEntry struct {
 	UserAgent        string `json:"json_user_agent"`
 	RawLine          string `json:"raw_line"`
 	JSONPart         string `json:"json_part"`
+	IsRecent         bool   `json:"is_recent"`
 }
 
 var (
-	infoEnabled   = flag.Bool("info", false, "Show INFO level logs")
-	warnEnabled   = flag.Bool("warn", false, "Show WARN level logs")
-	noticeEnabled = flag.Bool("notice", false, "Show NOTICE level logs")
-	debugEnabled  = flag.Bool("debug", false, "Show DEBUG level logs")
-	errorEnabled  = flag.Bool("err", false, "Show ERROR/ERR level logs")
-	allLevels     = flag.Bool("all", false, "Show all log levels")
+	infoEnabled      = flag.Bool("info", false, "Show INFO level logs")
+	warnEnabled      = flag.Bool("warn", false, "Show WARN level logs")
+	noticeEnabled    = flag.Bool("notice", false, "Show NOTICE level logs")
+	debugEnabled     = flag.Bool("debug", false, "Show DEBUG level logs")
+	errorEnabled     = flag.Bool("err", false, "Show ERROR/ERR level logs")
+	allLevels        = flag.Bool("all", false, "Show all log levels")
+	highlightMinutes = flag.Int("minutes", 1, "Number of minutes to highlight recent logs (0 to disable)")
 )
 
 func shouldShowLogLevel(level string) bool {
@@ -76,7 +78,7 @@ func shouldShowLogLevel(level string) bool {
 	}
 }
 
-func parseTime(timestamp string) (time.Time, error) {
+func parseTimestamp(timestamp string) (time.Time, error) {
 	layouts := []string{
 		"2006/01/02 15:04:05",
 		"2006-01-02 15:04:05",
@@ -115,12 +117,19 @@ func parseLogLine(line string) (*LogEntry, error) {
 			}
 		}
 	}
+	timestamp := strings.TrimSpace(strings.TrimLeft(parts[0], "["))
+	parsedTime, err := parseTimestamp(timestamp)
+	isRecent := false
+	if err == nil {
+		isRecent = *highlightMinutes > 0 && time.Since(parsedTime) <= time.Duration(*highlightMinutes)*time.Minute
+	}
 
 	entry := &LogEntry{
-		Timestamp: strings.TrimSpace(parts[0]),
+		Timestamp: timestamp,
 		Level:     rawLevel,
 		Message:   plainMessage,
 		RawLine:   line,
+		IsRecent:  isRecent,
 	}
 
 	if len(levelAndMsg) > 1 {
@@ -222,7 +231,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -warn     Show WARN level logs\n")
 		fmt.Fprintf(os.Stderr, "  -notice   Show NOTICE level logs\n")
 		fmt.Fprintf(os.Stderr, "  -debug    Show DEBUG level logs\n")
-		fmt.Fprintf(os.Stderr, "  -err      Show ERROR/ERR level logs\n\n")
+		fmt.Fprintf(os.Stderr, "  -err      Show ERROR/ERR level logs\n")
+		fmt.Fprintf(os.Stderr, "  -minutes  Number of minutes to highlight recent logs (default: 1, 0 to disable)\n\n")
 		fmt.Fprintf(os.Stderr, "If no log levels are specified, all levels will be shown.\n")
 		fmt.Fprintf(os.Stderr, "You can combine multiple flags to show multiple levels.\n")
 	}
@@ -261,6 +271,12 @@ func main() {
 		log.Printf("Filtering log levels: %s", strings.Join(activeFilters, ", "))
 	}
 
+	if *highlightMinutes > 0 {
+		log.Printf("Highlighting logs from the last %d minute(s)", *highlightMinutes)
+	} else {
+		log.Printf("Log highlighting is disabled")
+	}
+
 	staticContent, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		log.Fatal("Could not get static files:", err)
@@ -268,6 +284,8 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticContent))))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Removed debug print statement
+
 		tmplContent, err := templateFS.ReadFile("templates/index.html")
 		if err != nil {
 			log.Printf("Error reading template: %v", err)

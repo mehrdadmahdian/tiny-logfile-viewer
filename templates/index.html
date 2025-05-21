@@ -6,6 +6,33 @@
     <title>Log Viewer</title>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .button-group {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .control-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .highlight-btn {
+            background-color: #FFC107;
+            color: black;
+        }
+        .highlight-btn.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -28,8 +55,36 @@
         </div>
     </div>
 
+    <div class="button-group">
+        <button id="highlightBtn" class="control-btn highlight-btn active" onclick="toggleHighlight()">
+            <i class="fas fa-highlighter"></i>
+            Highlight Recent
+        </button>
+        <button class="control-btn" onclick="fetchLogs()">
+            <i class="fas fa-sync"></i>
+            Refresh
+        </button>
+    </div>
+
     <script>
         let lastLogTimestamp = '';
+        let highlightEnabled = true;
+
+        function toggleHighlight() {
+            highlightEnabled = !highlightEnabled;
+            const btn = document.getElementById('highlightBtn');
+            btn.classList.toggle('active');
+            
+            // Store the state in localStorage
+            localStorage.setItem('highlightEnabled', highlightEnabled);
+            
+            // Update the table without fetching new data
+            const tbody = document.getElementById('logTableBody');
+            Array.from(tbody.getElementsByTagName('tr')).forEach(row => {
+                const isRecent = row.getAttribute('data-recent') === 'true';
+                row.className = highlightEnabled && isRecent ? 'recent-log' : '';
+            });
+        }
 
         function formatTime(timestamp) {
             const [date, time] = timestamp.split(' ');
@@ -44,6 +99,11 @@
             
             logs.forEach(log => {
                 const row = document.createElement('tr');
+                // Store the is_recent state as a data attribute
+                row.setAttribute('data-recent', log.is_recent);
+                if (highlightEnabled && log.is_recent) {
+                    row.className = 'recent-log';
+                }
 
                 const detailsBtn = document.createElement('button');
                 detailsBtn.className = 'details-btn';
@@ -232,6 +292,16 @@
                     updateTable(logs);
                 })
                 .catch(error => console.error('Error fetching logs:', error));
+        }
+
+        // Load the highlight state from localStorage
+        const savedHighlightState = localStorage.getItem('highlightEnabled');
+        if (savedHighlightState !== null) {
+            highlightEnabled = savedHighlightState === 'true';
+            const btn = document.getElementById('highlightBtn');
+            if (!highlightEnabled) {
+                btn.classList.remove('active');
+            }
         }
 
         fetchLogs();
