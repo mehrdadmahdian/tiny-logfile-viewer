@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# Build the binary
-echo "Building logviewer binary..."
-go build -o logviewer main.go
+set -e
 
-# Make it executable
+echo "Building logviewer..."
+go build -o logviewer
+
+echo "Making executable..."
 chmod +x logviewer
 
 echo "Build complete! You can now use the logviewer with these options:"

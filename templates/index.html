@@ -32,105 +32,46 @@
         let lastLogTimestamp = '';
 
         function formatTime(timestamp) {
-            // Extract date and time parts
             const [date, time] = timestamp.split(' ');
-            return time || date; // Return time if available, otherwise date
-        }
-
-        function parseTimestamp(timestamp) {
-            // Parse timestamp in format "MM-DD HH:mm:ss"
-            const [datePart, timePart] = timestamp.split(' ');
-            if (!datePart || !timePart) return null;
-            
-            const [month, day] = datePart.split('-');
-            const [hours, minutes, seconds] = timePart.split(':');
-            
-            if (!month || !day || !hours || !minutes || !seconds) return null;
-            
-            const now = new Date();
-            const logDate = new Date(now.getFullYear(), parseInt(month) - 1, parseInt(day), 
-                                   parseInt(hours), parseInt(minutes), parseInt(seconds));
-            
-            // If the log date is in the future, it's probably from the previous year
-            if (logDate > now) {
-                logDate.setFullYear(now.getFullYear() - 1);
-            }
-            
-            return logDate;
-        }
-
-        function isRecent(timestamp) {
-            const logTime = parseTimestamp(timestamp);
-            if (!logTime) return false;
-            
-            const now = new Date();
-            const fiveMinutesAgo = new Date(now - 5 * 60 * 1000);
-            
-            // Compare timestamps
-            return logTime >= fiveMinutesAgo && logTime <= now;
+            return time || date;
         }
 
         function updateTable(logs) {
             const tbody = document.getElementById('logTableBody');
             tbody.innerHTML = '';
             
-            // Reverse the array to show newest entries first
             logs.reverse();
             
-            let foundOldLog = false;
-            let hasNewLogs = false;
-            
-            logs.forEach((log, index) => {
-                const isRecentLog = isRecent(log.timestamp);
-                if (isRecentLog) hasNewLogs = true;
-                
-                // Add separator between recent and old logs
-                if (!isRecentLog && !foundOldLog && hasNewLogs) {
-                    foundOldLog = true;
-                    const separatorRow = document.createElement('tr');
-                    separatorRow.className = 'separator-row';
-                    separatorRow.innerHTML = `
-                        <td colspan="6">
-                            <span class="separator-label">Older than 5 minutes</span>
-                        </td>
-                    `;
-                    tbody.appendChild(separatorRow);
-                }
-                
+            logs.forEach(log => {
                 const row = document.createElement('tr');
-                if (isRecentLog) {
-                    row.className = 'recent-log';
-                }
 
-                // Create the details button
                 const detailsBtn = document.createElement('button');
                 detailsBtn.className = 'details-btn';
                 detailsBtn.title = 'View Details';
                 detailsBtn.innerHTML = '<i class="fas fa-eye"></i>';
                 detailsBtn.addEventListener('click', () => openDetails(log));
 
-                // Create the table cells
                 const cells = [
                     createElement('td', '', [detailsBtn]),
-                    createElement('td', `level ${log.level.toLowerCase()}`, log.level),
+                    createElement('td', '', createElement('div', `level ${log.level.toLowerCase()}`, log.level)),
                     createElement('td', 'time', formatTime(log.timestamp)),
                     createElement('td', 'code', log.json_code || ''),
                     createElement('td', '', log.message || ''),
                     createElement('td', '', log.json_log_context || '')
                 ];
 
-                // Add all cells to the row
                 cells.forEach(cell => row.appendChild(cell));
                 tbody.appendChild(row);
             });
         }
 
-        // Helper function to create table cells
         function createElement(tag, className, content) {
             const element = document.createElement(tag);
             if (className) element.className = className;
             if (typeof content === 'string') {
                 element.textContent = content;
+            } else if (content instanceof HTMLElement) {
+                element.appendChild(content);
             } else if (Array.isArray(content)) {
                 content.forEach(child => element.appendChild(child));
             }
@@ -282,23 +223,18 @@
             fetch('/logs')
                 .then(response => response.json())
                 .then(logs => {
-                    // Check if we have new logs
                     const newestLog = logs[logs.length - 1];
                     if (!newestLog || newestLog.timestamp === lastLogTimestamp) {
-                        return; // No new logs, don't update the table
+                        return;
                     }
                     
-                    // Update the last timestamp and table
                     lastLogTimestamp = newestLog.timestamp;
                     updateTable(logs);
                 })
                 .catch(error => console.error('Error fetching logs:', error));
         }
 
-        // Initial fetch
         fetchLogs();
-
-        // Refresh every 2 seconds
         setInterval(fetchLogs, 2000);
     </script>
 </body>

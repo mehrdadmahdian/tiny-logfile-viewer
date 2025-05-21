@@ -2,17 +2,26 @@ package main
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html"
 	"html/template"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
+
+//go:embed templates/*
+var templateFS embed.FS
+
+//go:embed static/*
+var staticFS embed.FS
 
 type LogEntry struct {
 	Timestamp        string `json:"timestamp"`
@@ -65,6 +74,23 @@ func shouldShowLogLevel(level string) bool {
 	default:
 		return false
 	}
+}
+
+func parseTime(timestamp string) (time.Time, error) {
+	layouts := []string{
+		"2006/01/02 15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05.000Z",
+	}
+
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, timestamp); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("could not parse timestamp: %s", timestamp)
 }
 
 func parseLogLine(line string) (*LogEntry, error) {
@@ -235,11 +261,27 @@ func main() {
 		log.Printf("Filtering log levels: %s", strings.Join(activeFilters, ", "))
 	}
 
-	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	staticContent, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		log.Fatal("Could not get static files:", err)
+	}
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticContent))))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles("templates/index.html"))
+		tmplContent, err := templateFS.ReadFile("templates/index.html")
+		if err != nil {
+			log.Printf("Error reading template: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		tmpl, err := template.New("index.html").Parse(string(tmplContent))
+		if err != nil {
+			log.Printf("Error parsing template: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
 		tmpl.Execute(w, nil)
 	})
 
