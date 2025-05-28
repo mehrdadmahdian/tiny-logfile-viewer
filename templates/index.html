@@ -23,6 +23,45 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            background-color: #808080;  /* Default gray color */
+            color: white;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .control-btn.active {
+            background-color: #4CAF50;  /* Green color for active state */
+        }
+        .control-btn[data-action="clear"] {
+            background-color: #dc3545;
+        }
+        .control-btn[data-action="clear"]:hover {
+            background-color: #c82333;
+        }
+        .control-btn.loading {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        .control-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        .control-btn.loading i,
+        .control-btn.loading span {
+            visibility: hidden;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         .highlight-btn {
             background-color: #FFC107;
@@ -93,6 +132,9 @@
             background-color: #4CAF50;
             color: white;
         }
+        .hidden-log {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -159,6 +201,10 @@
             <i class="fas fa-redo"></i>
             Refresh Now
         </button>
+        <button class="control-btn" data-action="clear" onclick="clearLogs()">
+            <i class="fas fa-trash"></i>
+            Clear Logs
+        </button>
     </div>
 
     <script>
@@ -173,6 +219,7 @@
             'DEBUG': true,
             'ERROR': true
         };
+        let hiddenLogHashes = new Set();
 
         function normalizeLevel(level) {
             level = level.trim().toUpperCase();
@@ -230,20 +277,40 @@
             });
         }
 
+        function setButtonLoading(button, isLoading) {
+            if (isLoading) {
+                button.classList.add('loading');
+            } else {
+                button.classList.remove('loading');
+            }
+        }
+
         function toggleHighlight() {
-            highlightEnabled = !highlightEnabled;
             const btn = document.getElementById('highlightBtn');
-            btn.classList.toggle('active');
+            setButtonLoading(btn, true);
             
-            // Store the state in localStorage
-            localStorage.setItem('highlightEnabled', highlightEnabled);
-            
-            // Update the table without fetching new data
-            const tbody = document.getElementById('logTableBody');
-            Array.from(tbody.getElementsByTagName('tr')).forEach(row => {
-                const isRecent = row.getAttribute('data-recent') === 'true';
-                row.className = highlightEnabled && isRecent ? 'recent-log' : '';
-            });
+            setTimeout(() => {
+                highlightEnabled = !highlightEnabled;
+                btn.classList.toggle('active');
+                localStorage.setItem('highlightEnabled', highlightEnabled);
+                
+                // Only update the highlighting without modifying the table structure
+                const tbody = document.getElementById('logTableBody');
+                Array.from(tbody.getElementsByTagName('tr')).forEach(row => {
+                    if (!row.classList.contains('hidden-log')) {  // Only update visible rows
+                        const isRecent = row.getAttribute('data-recent') === 'true';
+                        if (isRecent) {
+                            if (highlightEnabled) {
+                                row.classList.add('recent-log');
+                            } else {
+                                row.classList.remove('recent-log');
+                            }
+                        }
+                    }
+                });
+                
+                setButtonLoading(btn, false);
+            }, 300);
         }
 
         function formatTime(timestamp) {
@@ -251,18 +318,41 @@
             return time || date;
         }
 
+        function generateLogHash(log) {
+            // Make sure we handle null or undefined values
+            const timestamp = log.timestamp || '';
+            const level = log.level || '';
+            const message = log.message || '';
+            const code = log.json_code || '';
+            return `${timestamp}_${level}_${message}_${code}`;
+        }
+
         function updateTable(logs) {
             const tbody = document.getElementById('logTableBody');
             tbody.innerHTML = '';
             
+            // Load hidden hashes from localStorage
+            const savedHashes = localStorage.getItem('hiddenLogHashes');
+            if (savedHashes) {
+                hiddenLogHashes = new Set(JSON.parse(savedHashes));
+            }
+            
             logs.reverse();
             
             logs.forEach(log => {
+                const logHash = generateLogHash(log);
+                
+                // Skip this log if it's in the hidden set
+                if (hiddenLogHashes.has(logHash)) {
+                    return;
+                }
+
                 const row = document.createElement('tr');
-                // Store the is_recent state as a data attribute
                 row.setAttribute('data-recent', log.is_recent);
+                row.setAttribute('data-hash', logHash);
+                
                 if (highlightEnabled && log.is_recent) {
-                    row.className = 'recent-log';
+                    row.classList.add('recent-log');
                 }
 
                 const detailsBtn = document.createElement('button');
@@ -271,11 +361,18 @@
                 detailsBtn.innerHTML = '<i class="fas fa-eye"></i>';
                 detailsBtn.addEventListener('click', () => openDetails(log));
 
+                // Format the code for display
+                const code = log.json_code ? 
+                    (typeof log.json_code === 'number' ? 
+                        log.json_code.toString() : 
+                        log.json_code) : 
+                    '';
+
                 const cells = [
                     createElement('td', '', [detailsBtn]),
                     createElement('td', '', createElement('div', `level ${log.level.toLowerCase()}`, log.level)),
                     createElement('td', 'time', formatTime(log.timestamp)),
-                    createElement('td', 'code', log.json_code || ''),
+                    createElement('td', 'code', code),
                     createElement('td', '', log.message || ''),
                     createElement('td', '', log.json_log_context || '')
                 ];
@@ -445,6 +542,9 @@
         }
 
         function fetchLogs() {
+            const refreshBtn = document.querySelector('.control-btn[onclick="fetchLogs()"]');
+            setButtonLoading(refreshBtn, true);
+
             fetch('/logs')
                 .then(response => response.json())
                 .then(logs => {
@@ -456,7 +556,10 @@
                     lastLogTimestamp = newestLog.timestamp;
                     updateTable(logs);
                 })
-                .catch(error => console.error('Error fetching logs:', error));
+                .catch(error => console.error('Error fetching logs:', error))
+                .finally(() => {
+                    setButtonLoading(refreshBtn, false);
+                });
         }
 
         function startAutoRefresh() {
@@ -469,11 +572,50 @@
         }
 
         function toggleAutoRefresh() {
-            autoRefreshEnabled = !autoRefreshEnabled;
             const btn = document.querySelector('.control-btn[data-action="refresh"]');
-            btn.classList.toggle('active');
-            localStorage.setItem('autoRefreshEnabled', autoRefreshEnabled);
-            startAutoRefresh();
+            setButtonLoading(btn, true);
+            
+            setTimeout(() => {
+                autoRefreshEnabled = !autoRefreshEnabled;
+                btn.classList.toggle('active');
+                localStorage.setItem('autoRefreshEnabled', autoRefreshEnabled);
+                startAutoRefresh();
+                setButtonLoading(btn, false);
+            }, 300);
+        }
+
+        function clearLogs() {
+            const btn = document.querySelector('.control-btn[data-action="clear"]');
+            setButtonLoading(btn, true);
+            
+            setTimeout(() => {
+                const tbody = document.getElementById('logTableBody');
+                const rows = tbody.getElementsByTagName('tr');
+                
+                // Add current visible logs to hidden hashes
+                Array.from(rows).forEach(row => {
+                    const hash = row.getAttribute('data-hash');
+                    if (hash) {
+                        hiddenLogHashes.add(hash);
+                        row.classList.add('hidden-log');
+                    }
+                });
+
+                // Store hidden hashes in localStorage
+                localStorage.setItem('hiddenLogHashes', JSON.stringify(Array.from(hiddenLogHashes)));
+                
+                // Clear the table
+                tbody.innerHTML = '';
+                
+                setButtonLoading(btn, false);
+            }, 300);
+        }
+
+        // Add a function to reset cleared logs
+        function resetClearedLogs() {
+            hiddenLogHashes.clear();
+            localStorage.removeItem('hiddenLogHashes');
+            fetchLogs(); // Refresh the logs
         }
 
         // Load saved states when page loads
@@ -495,6 +637,12 @@
                 autoRefreshEnabled = savedAutoRefresh === 'true';
                 const btn = document.querySelector('.control-btn[data-action="refresh"]');
                 btn.classList.toggle('active', autoRefreshEnabled);
+            }
+
+            // Load hidden log hashes
+            const savedHashes = localStorage.getItem('hiddenLogHashes');
+            if (savedHashes) {
+                hiddenLogHashes = new Set(JSON.parse(savedHashes));
             }
 
             fetchLogs();

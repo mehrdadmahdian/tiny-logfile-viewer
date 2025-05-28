@@ -29,12 +29,14 @@ table {
     border-collapse: collapse;
     margin-top: 10px;
     background-color: white;
+    font-size: 13px;
 }
 
 th, td {
-    padding: 12px;
+    padding: 8px 12px;
     text-align: left;
     border-bottom: 1px solid #ddd;
+    line-height: 1.4;
 }
 
 th {
@@ -44,6 +46,7 @@ th {
     position: sticky;
     top: 0;
     z-index: 1;
+    font-size: 13px;
 }
 
 tr:hover {
@@ -59,17 +62,22 @@ tr:hover {
 .code {
     font-family: monospace;
     text-align: center;
-    width: 60px;
+    min-width: 60px;
+    max-width: 100px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #0366d6;
 }
 
 .level {
-    font-weight: bold;
-    padding: 4px 8px;
-    border-radius: 4px;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 3px;
     text-align: center;
-    width: 80px;
+    width: 70px;
     white-space: nowrap;
+    font-size: 12px;
 }
 
 .warn {
@@ -101,13 +109,13 @@ tr:hover {
     background-color: #007bff;
     color: white;
     border: none;
-    padding: 8px;
+    padding: 6px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     transition: all 0.2s;
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -119,7 +127,7 @@ tr:hover {
 }
 
 .details-btn i {
-    font-size: 16px;
+    font-size: 12px;
 }
 
 .details-content {
@@ -138,12 +146,13 @@ pre {
 }
 
 .recent-log {
-    background-color: #fff8dc !important;
-    transition: background-color 0.5s ease;
+    background-color: #fff3cd !important;
+    transition: background-color 0.3s ease;
+    border-left: 4px solid #ffc107;
 }
 
 .recent-log:hover {
-    background-color: #fff3cd !important;
+    background-color: #ffe7a0 !important;
 }
 
 .separator-row {
