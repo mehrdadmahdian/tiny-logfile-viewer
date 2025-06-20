@@ -71,59 +71,7 @@
             background-color: #4CAF50;
             color: white;
         }
-        .filter-group {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .filter-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        .filter-btn {
-            padding: 8px 16px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            background: white;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .select-all-btn {
-            padding: 6px 12px;
-            border: 2px solid #2196F3;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            background: white;
-            color: #2196F3;
-            transition: all 0.2s;
-            width: 100%;
-            text-align: center;
-        }
-        .select-all-btn:hover {
-            background: #2196F3;
-            color: white;
-        }
-        .filter-btn.active {
-            color: white;
-        }
-        .filter-btn[data-level="INFO"].active { background-color: #2196F3; border-color: #2196F3; }
-        .filter-btn[data-level="WARN"].active { background-color: #FF9800; border-color: #FF9800; }
-        .filter-btn[data-level="NOTICE"].active { background-color: #9C27B0; border-color: #9C27B0; }
-        .filter-btn[data-level="DEBUG"].active { background-color: #4CAF50; border-color: #4CAF50; }
-        .filter-btn[data-level="ERROR"].active { background-color: #F44336; border-color: #F44336; }
+
         .control-btn[data-action="refresh"] {
             background-color: #FFC107;
             color: black;
@@ -135,56 +83,322 @@
         .hidden-log {
             display: none !important;
         }
+        .main-container {
+            display: flex;
+            height: calc(100vh - 40px);
+            gap: 10px;
+            flex-direction: row;
+        }
+        
+        .logs-panel {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .details-panel {
+            width: 0;
+            overflow: hidden;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: width 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .details-panel.open {
+            width: 45%;
+            min-width: 400px;
+        }
+        
+        .details-header {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            flex-shrink: 0;
+        }
+        
+        .details-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .close-details {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .close-details:hover {
+            background: #c82333;
+        }
+        
+        tr.clickable-row {
+            cursor: pointer;
+        }
+        
+        tr.clickable-row:hover {
+            background-color: #e3f2fd !important;
+        }
+        
+        tr.selected {
+            background-color: #bbdefb !important;
+        }
+        
+        /* Vertical layout for smaller screens */
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+                height: calc(100vh - 40px);
+            }
+            
+            .logs-panel {
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+            }
+            
+            .details-panel {
+                width: 100%;
+                height: 0;
+                transition: height 0.3s ease;
+                min-width: 0;
+            }
+            
+            .details-panel.open {
+                height: 50%;
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .details-panel.open {
+                height: 60%;
+                width: 100%;
+            }
+        }
+        
+        .json-viewer {
+            background: #1e1e1e;
+            color: #e6db74;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+        
+        .field-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .field-label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .field-value {
+            word-break: break-word;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        
+        .container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .table-container {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            background: white;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+        }
+        
+        .filter-btn:hover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+        
+        .filter-btn.active {
+            color: white;
+            border-color: transparent;
+        }
+        
+        .filter-btn[data-level="INFO"].active { 
+            background-color: #2196F3; 
+        }
+        .filter-btn[data-level="WARN"].active { 
+            background-color: #FF9800; 
+        }
+        .filter-btn[data-level="NOTICE"].active { 
+            background-color: #9C27B0; 
+        }
+        .filter-btn[data-level="DEBUG"].active { 
+            background-color: #4CAF50; 
+        }
+        .filter-btn[data-level="ERROR"].active { 
+            background-color: #F44336; 
+        }
+        
+        .filter-btn i {
+            font-size: 10px;
+        }
+        
+        .select-all-btn {
+            padding: 4px 8px;
+            border: 1px solid #2196F3;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            background: white;
+            color: #2196F3;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .select-all-btn:hover {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .select-all-btn i {
+            font-size: 10px;
+        }
+        
+        h1 {
+            color: #333;
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        @media (max-width: 768px) {
+            .header-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .filter-group {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Log Viewer</h1>
-        
-        <div class="filter-group">
-            <button class="select-all-btn" onclick="toggleAllFilters()">
-                <i class="fas fa-check-double"></i>
-                Select All/None
-            </button>
-            <div class="filter-buttons">
-                <button class="filter-btn active" data-level="INFO" onclick="toggleFilter(this)">
-                    <i class="fas fa-info-circle"></i>
-                    INFO
-                </button>
-                <button class="filter-btn active" data-level="WARN" onclick="toggleFilter(this)">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    WARN
-                </button>
-                <button class="filter-btn active" data-level="NOTICE" onclick="toggleFilter(this)">
-                    <i class="fas fa-bell"></i>
-                    NOTICE
-                </button>
-                <button class="filter-btn active" data-level="DEBUG" onclick="toggleFilter(this)">
-                    <i class="fas fa-bug"></i>
-                    DEBUG
-                </button>
-                <button class="filter-btn active" data-level="ERROR" onclick="toggleFilter(this)">
-                    <i class="fas fa-times-circle"></i>
-                    ERROR/ERR
-                </button>
+    <div class="main-container">
+        <div class="logs-panel">
+            <div class="container">
+                <div class="header-row">
+                    <h1>Log Viewer</h1>
+                    <div class="filter-group">
+                        <button class="select-all-btn" onclick="toggleAllFilters()">
+                            <i class="fas fa-check-double"></i>
+                            All/None
+                        </button>
+                        <button class="filter-btn active" data-level="INFO" onclick="toggleFilter(this)">
+                            <i class="fas fa-info-circle"></i>
+                            INFO
+                        </button>
+                        <button class="filter-btn active" data-level="WARN" onclick="toggleFilter(this)">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            WARN
+                        </button>
+                        <button class="filter-btn active" data-level="NOTICE" onclick="toggleFilter(this)">
+                            <i class="fas fa-bell"></i>
+                            NOTICE
+                        </button>
+                        <button class="filter-btn active" data-level="DEBUG" onclick="toggleFilter(this)">
+                            <i class="fas fa-bug"></i>
+                            DEBUG
+                        </button>
+                        <button class="filter-btn active" data-level="ERROR" onclick="toggleFilter(this)">
+                            <i class="fas fa-times-circle"></i>
+                            ERROR
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="logTable">
+                        <thead>
+                            <tr>
+                                <th>Level</th>
+                                <th>Time</th>
+                                <th>Code</th>
+                                <th>Message</th>
+                                <th>Context</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-
-        <div class="table-container">
-            <table id="logTable">
-                <thead>
-                    <tr>
-                        <th>Action</th>
-                        <th>Level</th>
-                        <th>Time</th>
-                        <th>Code</th>
-                        <th>Message</th>
-                        <th>Context</th>
-                    </tr>
-                </thead>
-                <tbody id="logTableBody">
-                </tbody>
-            </table>
+        
+        <div class="details-panel" id="detailsPanel">
+            <div class="details-header">
+                <h3>Log Details</h3>
+                <button class="close-details" onclick="closeDetails()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+            <div class="details-content" id="detailsContent">
+                <p style="color: #666; text-align: center; margin-top: 50px;">
+                    <i class="fas fa-mouse-pointer" style="font-size: 24px; margin-bottom: 10px;"></i><br>
+                    Click on any log entry to view details
+                </p>
+            </div>
         </div>
     </div>
 
@@ -220,6 +434,7 @@
             'ERROR': true
         };
         let hiddenLogHashes = new Set();
+        let selectedRow = null;
 
         function normalizeLevel(level) {
             level = level.trim().toUpperCase();
@@ -272,8 +487,11 @@
         function applyFilters() {
             const tbody = document.getElementById('logTableBody');
             Array.from(tbody.getElementsByTagName('tr')).forEach(row => {
-                const level = normalizeLevel(row.querySelector('td:nth-child(2)').textContent.trim());
-                row.style.display = activeFilters[level] ? '' : 'none';
+                const levelDiv = row.querySelector('td:nth-child(1) div');
+                if (levelDiv) {
+                    const level = normalizeLevel(levelDiv.textContent.trim());
+                    row.style.display = activeFilters[level] ? '' : 'none';
+                }
             });
         }
 
@@ -327,6 +545,64 @@
             return `${timestamp}_${level}_${message}_${code}`;
         }
 
+        function showDetails(logData) {
+            const panel = document.getElementById('detailsPanel');
+            const content = document.getElementById('detailsContent');
+            
+            const jsonPart = logData.json_part || '{}';
+            let formattedJson;
+            try {
+                const jsonObj = JSON.parse(jsonPart);
+                formattedJson = JSON.stringify(jsonObj, null, 2);
+            } catch (e) {
+                formattedJson = jsonPart;
+            }
+            
+            const detailsHtml = `
+                <div class="field-grid">
+                    <div class="field-label">Timestamp:</div>
+                    <div class="field-value">${logData.timestamp || 'N/A'}</div>
+                    <div class="field-label">Level:</div>
+                    <div class="field-value">${logData.level || 'N/A'}</div>
+                    <div class="field-label">Message:</div>
+                    <div class="field-value">${logData.message || 'N/A'}</div>
+                    <div class="field-label">Code:</div>
+                    <div class="field-value">${logData.json_code || 'N/A'}</div>
+                    <div class="field-label">Context:</div>
+                    <div class="field-value">${logData.json_log_context || 'N/A'}</div>
+                    <div class="field-label">File:</div>
+                    <div class="field-value">${logData.json_file || 'N/A'}</div>
+                    <div class="field-label">Line:</div>
+                    <div class="field-value">${logData.json_line || 'N/A'}</div>
+                    <div class="field-label">Function:</div>
+                    <div class="field-value">${logData.json_function || 'N/A'}</div>
+                    <div class="field-label">Class:</div>
+                    <div class="field-value">${logData.json_class || 'N/A'}</div>
+                    <div class="field-label">Request URI:</div>
+                    <div class="field-value">${logData.json_request_uri || 'N/A'}</div>
+                    <div class="field-label">Correlation ID:</div>
+                    <div class="field-value">${logData.json_correlation_id || 'N/A'}</div>
+                    <div class="field-label">User Agent:</div>
+                    <div class="field-value">${logData.json_user_agent || 'N/A'}</div>
+                </div>
+                
+                <h4>Raw JSON Data:</h4>
+                <div class="json-viewer">${formattedJson}</div>
+            `;
+            
+            content.innerHTML = detailsHtml;
+            panel.classList.add('open');
+        }
+
+        function closeDetails() {
+            const panel = document.getElementById('detailsPanel');
+            panel.classList.remove('open');
+            if (selectedRow) {
+                selectedRow.classList.remove('selected');
+                selectedRow = null;
+            }
+        }
+
         function updateTable(logs) {
             const tbody = document.getElementById('logTableBody');
             tbody.innerHTML = '';
@@ -350,16 +626,11 @@
                 const row = document.createElement('tr');
                 row.setAttribute('data-recent', log.is_recent);
                 row.setAttribute('data-hash', logHash);
+                row.classList.add('clickable-row');
                 
                 if (highlightEnabled && log.is_recent) {
                     row.classList.add('recent-log');
                 }
-
-                const detailsBtn = document.createElement('button');
-                detailsBtn.className = 'details-btn';
-                detailsBtn.title = 'View Details';
-                detailsBtn.innerHTML = '<i class="fas fa-eye"></i>';
-                detailsBtn.addEventListener('click', () => openDetails(log));
 
                 // Format the code for display
                 const code = log.json_code ? 
@@ -369,7 +640,6 @@
                     '';
 
                 const cells = [
-                    createElement('td', '', [detailsBtn]),
                     createElement('td', '', createElement('div', `level ${log.level.toLowerCase()}`, log.level)),
                     createElement('td', 'time', formatTime(log.timestamp)),
                     createElement('td', 'code', code),
@@ -378,10 +648,21 @@
                 ];
 
                 cells.forEach(cell => row.appendChild(cell));
+                
+                // Add click handler for the entire row
+                row.addEventListener('click', () => {
+                    if (selectedRow) {
+                        selectedRow.classList.remove('selected');
+                    }
+                    row.classList.add('selected');
+                    selectedRow = row;
+                    showDetails(log);
+                });
+                
                 tbody.appendChild(row);
 
                 // Apply current filters
-                if (!activeFilters[log.level]) {
+                if (!activeFilters[normalizeLevel(log.level)]) {
                     row.style.display = 'none';
                 }
             });
@@ -398,147 +679,6 @@
                 content.forEach(child => element.appendChild(child));
             }
             return element;
-        }
-
-        function openDetails(logData) {
-            const detailsWindow = window.open('', '_blank');
-            const jsonPart = logData.json_part || '{}';
-            
-            let formattedJson;
-            try {
-                const jsonObj = JSON.parse(jsonPart);
-                formattedJson = JSON.stringify(jsonObj, null, 2);
-            } catch (e) {
-                formattedJson = jsonPart;
-            }
-
-            detailsWindow.document.write(`
-                <html>
-                <head>
-                    <title>Log Details</title>
-                    <style>
-                        body {
-                            font-family: -apple-system, system-ui, sans-serif;
-                            padding: 20px;
-                            background: #f5f5f5;
-                            line-height: 1.6;
-                        }
-                        .details-container {
-                            background: white;
-                            padding: 20px;
-                            border-radius: 8px;
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                        }
-                        .raw-log {
-                            background: #2d2d2d;
-                            color: #ffffff;
-                            padding: 15px;
-                            border-radius: 4px;
-                            margin-bottom: 20px;
-                            overflow-x: auto;
-                            white-space: pre-wrap;
-                            font-family: monospace;
-                        }
-                        .json-part {
-                            background: #1e1e1e;
-                            color: #e6db74;
-                            padding: 20px;
-                            font-size: 14px;
-                            line-height: 1.5;
-                        }
-                        .parsed-fields {
-                            background: #f8f9fa;
-                            padding: 15px;
-                            border-radius: 4px;
-                            overflow-x: auto;
-                        }
-                        .field {
-                            display: flex;
-                            border-bottom: 1px solid #eee;
-                            padding: 8px 0;
-                        }
-                        .field-name {
-                            font-weight: bold;
-                            width: 120px;
-                            color: #666;
-                        }
-                        .field-value {
-                            flex: 1;
-                            word-break: break-word;
-                        }
-                        h2 {
-                            color: #333;
-                            margin-bottom: 15px;
-                        }
-                        h3 {
-                            color: #666;
-                            font-size: 1.1em;
-                            margin: 15px 0 10px 0;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="details-container">
-                        <h2>Log Entry Details</h2>
-                        
-                        <h3>JSON Data</h3>
-                        <div class="raw-log json-part">${formattedJson}</div>
-                        
-                        <h3>Parsed Fields</h3>
-                        <div class="parsed-fields">
-                            <div class="field">
-                                <div class="field-name">Timestamp:</div>
-                                <div class="field-value">${logData.timestamp || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Level:</div>
-                                <div class="field-value">${logData.level || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Message:</div>
-                                <div class="field-value">${logData.message || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">File:</div>
-                                <div class="field-value">${logData.json_file || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Line:</div>
-                                <div class="field-value">${logData.json_line || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Class:</div>
-                                <div class="field-value">${logData.json_class || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Function:</div>
-                                <div class="field-value">${logData.json_function || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Code:</div>
-                                <div class="field-value">${logData.json_code || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Context:</div>
-                                <div class="field-value">${logData.json_log_context || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Request URI:</div>
-                                <div class="field-value">${logData.json_request_uri || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">Correlation ID:</div>
-                                <div class="field-value">${logData.json_correlation_id || 'N/A'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="field-name">User Agent:</div>
-                                <div class="field-value">${logData.json_user_agent || 'N/A'}</div>
-                            </div>
-                        </div>
-                    </div>
-                </body>
-                </html>
-            `);
         }
 
         function fetchLogs() {
@@ -620,6 +760,21 @@
 
         // Load saved states when page loads
         window.addEventListener('load', () => {
+            // Clear hidden logs on hard refresh (F5)
+            if (window.performance && (
+                window.performance.getEntriesByType('navigation')[0]?.type === 'reload' ||
+                window.performance.navigation?.type === 1  // Fallback for older browsers
+            )) {
+                hiddenLogHashes.clear();
+                localStorage.removeItem('hiddenLogHashes');
+            } else {
+                // Load hidden log hashes only on soft refresh
+                const savedHashes = localStorage.getItem('hiddenLogHashes');
+                if (savedHashes) {
+                    hiddenLogHashes = new Set(JSON.parse(savedHashes));
+                }
+            }
+
             // Load highlight state
             const savedHighlight = localStorage.getItem('highlightEnabled');
             if (savedHighlight !== null) {
@@ -637,12 +792,6 @@
                 autoRefreshEnabled = savedAutoRefresh === 'true';
                 const btn = document.querySelector('.control-btn[data-action="refresh"]');
                 btn.classList.toggle('active', autoRefreshEnabled);
-            }
-
-            // Load hidden log hashes
-            const savedHashes = localStorage.getItem('hiddenLogHashes');
-            if (savedHashes) {
-                hiddenLogHashes = new Set(JSON.parse(savedHashes));
             }
 
             fetchLogs();

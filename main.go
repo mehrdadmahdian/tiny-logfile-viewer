@@ -331,7 +331,7 @@ func main() {
 	})
 
 	http.HandleFunc("/logs", func(w http.ResponseWriter, r *http.Request) {
-		entries, err := readLastNLines(logFile, 50)
+		entries, err := readLastNLines(logFile, 200)
 		if err != nil {
 			log.Printf("Error reading log file: %v", err)
 			http.Error(w, "Error reading log file", http.StatusInternalServerError)
