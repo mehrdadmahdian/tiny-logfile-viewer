@@ -291,9 +291,8 @@
             
             logs.forEach(log => {
                 const row = document.createElement('tr');
-                // Check if log is recent (within 5 minutes)
-                const isRecent = isLogRecent(log.timestamp);
-                row.className = isRecent ? 'recent' : '';
+                // Use the IsRecent field from the backend response
+                row.className = log.is_recent ? 'recent' : '';
                 row.dataset.logData = JSON.stringify(log);
                 
                 const timeCell = document.createElement('td');
@@ -328,13 +327,7 @@
             filterLogsByLevel();
         }
 
-        function isLogRecent(timestamp) {
-            const logTime = new Date(timestamp);
-            const now = new Date();
-            const timeDiff = now - logTime;
-            // Consider logs within 5 minutes as recent
-            return timeDiff <= 5 * 60 * 1000;
-        }
+
 
         function formatTime(timestamp) {
             const logDate = new Date(timestamp);
