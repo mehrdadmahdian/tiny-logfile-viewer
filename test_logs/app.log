@@ -1,5 +1,0 @@
-2024-12-26 14:10:00 INFO Application started successfully {"json_file": "app.py", "json_line": 10, "json_class": "Application", "json_function": "start", "json_code": 200}
-2024-12-26 14:10:30 INFO User session created {"json_file": "app.py", "json_line": 25, "json_class": "SessionManager", "json_function": "create_session", "json_code": 200, "json_correlation_id": "session-123"}
-2024-12-26 14:11:15 WARN High memory usage detected {"json_file": "app.py", "json_line": 45, "json_class": "MemoryMonitor", "json_function": "check_memory", "json_code": 200, "json_exceptionMessage": "Memory usage: 85%"}
-2024-12-26 14:12:00 ERROR Failed to process request {"json_file": "app.py", "json_line": 67, "json_class": "RequestProcessor", "json_function": "process", "json_code": 500, "json_exception": "ProcessingError: Invalid data format"}
-2024-12-26 14:12:30 DEBUG Processing user request {"json_file": "app.py", "json_line": 89, "json_class": "RequestHandler", "json_function": "handle", "json_code": 200} 

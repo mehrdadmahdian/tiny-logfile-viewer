@@ -367,6 +367,18 @@ func readLastNLines(filePath string, n int) ([]LogEntry, error) {
 		}
 	}
 
+	// Sort entries by timestamp (newest first)
+	sort.Slice(entries, func(i, j int) bool {
+		time1, err1 := parseTimestamp(entries[i].Timestamp)
+		time2, err2 := parseTimestamp(entries[j].Timestamp)
+		
+		if err1 != nil || err2 != nil {
+			return false
+		}
+		
+		return time1.After(time2)
+	})
+
 	return entries, nil
 }
 
@@ -493,6 +505,32 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(entries)
+	})
+
+	// Info handler
+	http.HandleFunc("/info", func(w http.ResponseWriter, r *http.Request) {
+		info := map[string]interface{}{
+			"path":         logPath,
+			"is_directory": isDirectory,
+		}
+
+		if isDirectory {
+			// Count files in directory
+			fileCount := 0
+			filepath.Walk(logPath, func(path string, fileInfo os.FileInfo, err error) error {
+				if err != nil {
+					return nil
+				}
+				if !fileInfo.IsDir() && (strings.HasSuffix(path, ".log") || strings.HasSuffix(path, ".txt")) {
+					fileCount++
+				}
+				return nil
+			})
+			info["file_count"] = fileCount
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(info)
 	})
 
 	log.Printf("Starting log viewer for %s on http://localhost:%s", logPath, *port)

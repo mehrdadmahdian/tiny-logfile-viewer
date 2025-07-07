@@ -1,5 +1,0 @@
-2024-12-26 14:13:00 INFO Database connection established {"json_file": "db.py", "json_line": 15, "json_class": "DatabaseConnection", "json_function": "connect", "json_code": 200}
-2024-12-26 14:13:30 INFO Query executed successfully {"json_file": "db.py", "json_line": 45, "json_class": "QueryExecutor", "json_function": "execute", "json_code": 200, "json_correlation_id": "query-456"}
-2024-12-26 14:14:00 WARN Slow query detected {"json_file": "db.py", "json_line": 78, "json_class": "PerformanceMonitor", "json_function": "monitor", "json_code": 200, "json_exceptionMessage": "Query took 2.5 seconds"}
-2024-12-26 14:14:30 ERROR Database connection timeout {"json_file": "db.py", "json_line": 123, "json_class": "DatabaseConnection", "json_function": "execute_query", "json_code": 500, "json_exception": "TimeoutError: Connection timed out after 30 seconds"}
-2024-12-26 14:15:00 DEBUG Connection pool stats {"json_file": "db.py", "json_line": 156, "json_class": "ConnectionPool", "json_function": "get_stats", "json_code": 200} 

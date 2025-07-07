@@ -3,234 +3,298 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log Viewer</title>
+    <title>HOAPI Log Viewer</title>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <div class="page-header">
+        <h1><i class="fas fa-file-alt"></i> HOAPI Log Viewer <span id="logSource" class="log-source-inline">(Loading...)</span></h1>
+    </div>
+    
+    <div class="app-container">
     <div class="main-container">
         <div class="toolbar">
             <div class="toolbar-left">
-                <button id="startBtn" class="btn btn-primary">
+                <button id="toggleBtn" class="btn btn-primary" data-state="stopped">
                     <i class="fas fa-play"></i> Start
                 </button>
-                <button id="stopBtn" class="btn btn-secondary">
-                    <i class="fas fa-stop"></i> Stop
-                </button>
-                <button id="clearBtn" class="btn btn-danger">
+                <button id="clearBtn" class="btn btn-secondary">
                     <i class="fas fa-trash"></i> Clear
                 </button>
             </div>
             
             <div class="toolbar-center">
                 <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search in logs..." class="search-input">
                     <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="searchInput" placeholder="Search messages..." class="search-input">
-                </div>
-                <div class="lines-container">
-                    <label for="linesInput">Lines:</label>
-                    <input type="number" id="linesInput" value="200" min="1" max="10000" class="lines-input">
                 </div>
             </div>
             
             <div class="toolbar-right">
-                <div class="filter-container">
-                    <label>Level Filter:</label>
-                    <div class="filter-buttons">
-                        <button id="filterAll" class="btn btn-small btn-filter active">All</button>
-                        <button id="filterNone" class="btn btn-small btn-filter">None</button>
-                        <button id="filterInfo" class="btn btn-small btn-filter level-info">INFO</button>
-                        <button id="filterWarn" class="btn btn-small btn-filter level-warn">WARN</button>
-                        <button id="filterError" class="btn btn-small btn-filter level-error">ERROR</button>
-                        <button id="filterDebug" class="btn btn-small btn-filter level-debug">DEBUG</button>
-                    </div>
+                <div class="filter-group">
+                    <label for="linesInput">Lines:</label>
+                    <input type="number" id="linesInput" class="filter-input" value="200" min="1" max="10000" placeholder="200">
+                </div>
+
+                <div class="filter-group">
+                    <label>Levels:</label>
+                    <button id="allBtn" class="filter-btn active" data-level="all">All</button>
+                    <button id="noneBtn" class="filter-btn" data-level="none">None</button>
+                    <button class="filter-btn" data-level="ERROR">ERROR</button>
+                    <button class="filter-btn" data-level="WARN">WARN</button>
+                    <button class="filter-btn" data-level="INFO">INFO</button>
+                    <button class="filter-btn" data-level="NOTICE">NOTICE</button>
+                    <button class="filter-btn" data-level="DEBUG">DEBUG</button>
                 </div>
             </div>
         </div>
         
-        <div class="content-container">
+        <div class="content-area">
             <div class="log-container">
-                <table id="logTable" class="log-table">
-                    <thead>
-                        <tr>
-                            <th class="col-time">Time</th>
-                            <th class="col-level">Level</th>
-                            <th class="col-code">Code</th>
-                            <th class="col-message">Message</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logTableBody">
-                        <!-- Logs will be populated here -->
-                    </tbody>
-                </table>
+                <div class="table-container">
+                    <table id="logTable">
+                        <thead>
+                            <tr>
+                                <th class="col-time">Time</th>
+                                <th class="col-level">Level</th>
+                                <th class="col-code">Code</th>
+                                <th class="col-message">Message</th>
+                                <th class="col-file">File</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <i class="fas fa-spinner fa-spin"></i> Loading logs...
+                </div>
             </div>
-            
-            <div id="detailsPanel" class="details-panel">
+        
+            <div class="details-panel" id="detailsPanel">
                 <div class="details-header">
-                    <h3>Log Details</h3>
-                    <button id="closePanelBtn" class="btn btn-small">
+                    <h3><i class="fas fa-info-circle"></i> Log Details</h3>
+                    <button id="closePanelBtn" class="btn-close">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <div class="details-content" id="detailsContent">
-                    <p>Click on a log entry to view details</p>
+                    <p class="no-selection">Select a log entry to view details</p>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script>
-        let autoRefresh = false;
-        let refreshInterval = null;
-        let logs = [];
-        let filteredLogs = [];
-        let activeFilters = new Set(['INFO', 'WARN', 'ERROR', 'DEBUG', 'NOTICE']);
+        let isRunning = false;
+        let refreshInterval;
+        let selectedLevels = ['all'];
+        let lastUpdate = new Date();
         let currentSearch = '';
         let currentLines = 200;
-        
-        // Initialize
+        let lastLogHash = '';
+        let clearTimestamp = null;
+
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            loadLogSource();
+            initializeEventListeners();
             loadLogs();
-            setupEventListeners();
+            // Start in play mode by default after a short delay
+            setTimeout(() => {
+                if (!isRunning) {
+                    toggleLogUpdates();
+                }
+            }, 1000);
         });
-        
-        function setupEventListeners() {
-            // Control buttons
-            document.getElementById('startBtn').addEventListener('click', startAutoRefresh);
-            document.getElementById('stopBtn').addEventListener('click', stopAutoRefresh);
-            document.getElementById('clearBtn').addEventListener('click', clearLogs);
-            
-            // Search and lines
-            document.getElementById('searchInput').addEventListener('input', handleSearch);
-            document.getElementById('linesInput').addEventListener('change', handleLinesChange);
-            
+
+        function initializeEventListeners() {
+            // Toggle button
+            document.getElementById('toggleBtn').addEventListener('click', function() {
+                toggleLogUpdates();
+            });
+
+            // Clear button
+            document.getElementById('clearBtn').addEventListener('click', function() {
+                clearLogs();
+            });
+
+            // Search input
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                currentSearch = e.target.value;
+                debounceSearch();
+            });
+
+            // Lines input
+            document.getElementById('linesInput').addEventListener('input', function(e) {
+                const value = parseInt(e.target.value);
+                if (value && value > 0) {
+                    currentLines = value;
+                    debounceLoadLogs();
+                }
+            });
+
             // Filter buttons
-            document.getElementById('filterAll').addEventListener('click', () => setAllFilters(true));
-            document.getElementById('filterNone').addEventListener('click', () => setAllFilters(false));
-            document.getElementById('filterInfo').addEventListener('click', () => toggleFilter('INFO'));
-            document.getElementById('filterWarn').addEventListener('click', () => toggleFilter('WARN'));
-            document.getElementById('filterError').addEventListener('click', () => toggleFilter('ERROR'));
-            document.getElementById('filterDebug').addEventListener('click', () => toggleFilter('DEBUG'));
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    handleLevelFilter(this);
+                });
+            });
+
+            // Close panel button
+            document.getElementById('closePanelBtn').addEventListener('click', function() {
+                closeDetailsPanel();
+            });
+
+            // Table row clicks
+            document.getElementById('logTableBody').addEventListener('click', function(e) {
+                const row = e.target.closest('tr');
+                if (row && row.dataset.logData) {
+                    showLogDetails(JSON.parse(row.dataset.logData));
+                }
+            });
+        }
+
+        function toggleLogUpdates() {
+            const btn = document.getElementById('toggleBtn');
+            const icon = btn.querySelector('i');
             
-            // Details panel
-            document.getElementById('closePanelBtn').addEventListener('click', closeDetailsPanel);
-        }
-        
-        function startAutoRefresh() {
-            if (!autoRefresh) {
-                autoRefresh = true;
-                document.getElementById('startBtn').classList.add('active');
-                document.getElementById('stopBtn').classList.remove('active');
-                refreshInterval = setInterval(loadLogs, 2000);
-            }
-        }
-        
-        function stopAutoRefresh() {
-            if (autoRefresh) {
-                autoRefresh = false;
-                document.getElementById('startBtn').classList.remove('active');
-                document.getElementById('stopBtn').classList.add('active');
+            if (isRunning) {
+                // Stop
+                isRunning = false;
                 if (refreshInterval) {
                     clearInterval(refreshInterval);
-                    refreshInterval = null;
+                }
+                btn.className = 'btn btn-primary';
+                btn.dataset.state = 'stopped';
+                icon.className = 'fas fa-play';
+                btn.innerHTML = '<i class="fas fa-play"></i> Start';
+            } else {
+                // Start
+                isRunning = true;
+                refreshInterval = setInterval(loadLogs, 2000);
+                btn.className = 'btn btn-success';
+                btn.dataset.state = 'running';
+                icon.className = 'fas fa-stop';
+                btn.innerHTML = '<i class="fas fa-stop"></i> Stop';
+                loadLogs();
+            }
+        }
+
+        function clearLogs() {
+            const tbody = document.getElementById('logTableBody');
+            tbody.innerHTML = '';
+            closeDetailsPanel();
+            clearTimestamp = new Date().toISOString();
+        }
+
+        function handleLevelFilter(btn) {
+            const level = btn.dataset.level;
+            
+            if (level === 'all') {
+                selectedLevels = ['all'];
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            } else if (level === 'none') {
+                selectedLevels = [];
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            } else {
+                // Remove 'all' and 'none' if they were selected
+                selectedLevels = selectedLevels.filter(l => l !== 'all' && l !== 'none');
+                document.getElementById('allBtn').classList.remove('active');
+                document.getElementById('noneBtn').classList.remove('active');
+                
+                if (selectedLevels.includes(level)) {
+                    selectedLevels = selectedLevels.filter(l => l !== level);
+                    btn.classList.remove('active');
+                } else {
+                    selectedLevels.push(level);
+                    btn.classList.add('active');
                 }
             }
-        }
-        
-        function clearLogs() {
-            logs = [];
-            filteredLogs = [];
-            renderLogs();
-            closeDetailsPanel();
-        }
-        
-        function handleSearch() {
-            currentSearch = document.getElementById('searchInput').value.toLowerCase();
-            applyFilters();
-        }
-        
-        function handleLinesChange() {
-            currentLines = parseInt(document.getElementById('linesInput').value) || 200;
-            loadLogs();
-        }
-        
-        function setAllFilters(enabled) {
-            if (enabled) {
-                activeFilters = new Set(['INFO', 'WARN', 'ERROR', 'DEBUG', 'NOTICE']);
-                document.getElementById('filterAll').classList.add('active');
-                document.getElementById('filterNone').classList.remove('active');
-                document.querySelectorAll('.btn-filter:not(#filterAll):not(#filterNone)').forEach(btn => {
-                    btn.classList.add('active');
-                });
-            } else {
-                activeFilters = new Set();
-                document.getElementById('filterAll').classList.remove('active');
-                document.getElementById('filterNone').classList.add('active');
-                document.querySelectorAll('.btn-filter:not(#filterAll):not(#filterNone)').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-            }
-            applyFilters();
-        }
-        
-        function toggleFilter(level) {
-            const btn = document.getElementById('filter' + level.charAt(0).toUpperCase() + level.slice(1).toLowerCase());
-            if (activeFilters.has(level)) {
-                activeFilters.delete(level);
-                btn.classList.remove('active');
-            } else {
-                activeFilters.add(level);
-                btn.classList.add('active');
-            }
             
-            // Update All/None buttons
-            const allLevels = ['INFO', 'WARN', 'ERROR', 'DEBUG', 'NOTICE'];
-            const allActive = allLevels.every(l => activeFilters.has(l));
-            const noneActive = activeFilters.size === 0;
-            
-            document.getElementById('filterAll').classList.toggle('active', allActive);
-            document.getElementById('filterNone').classList.toggle('active', noneActive);
-            
-            applyFilters();
+            filterLogsByLevel();
         }
-        
-        function applyFilters() {
-            filteredLogs = logs.filter(log => {
-                const matchesLevel = activeFilters.size === 0 || activeFilters.has(log.level);
-                const matchesSearch = !currentSearch || 
-                    log.message.toLowerCase().includes(currentSearch) ||
-                    log.json_part.toLowerCase().includes(currentSearch) ||
-                    log.level.toLowerCase().includes(currentSearch);
-                return matchesLevel && matchesSearch;
+
+        function filterLogsByLevel() {
+            const rows = document.querySelectorAll('#logTableBody tr');
+            rows.forEach(row => {
+                const logData = JSON.parse(row.dataset.logData);
+                const level = logData.level;
+                
+                // Show if: 'all' is selected, OR no filters selected (same as all), OR specific level is selected
+                if (selectedLevels.includes('all') || selectedLevels.length === 0 || selectedLevels.includes(level)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
             });
-            renderLogs();
+        }
+
+        let searchTimeout;
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(loadLogs, 500);
         }
         
+        let loadLogsTimeout;
+        function debounceLoadLogs() {
+            clearTimeout(loadLogsTimeout);
+            loadLogsTimeout = setTimeout(loadLogs, 300);
+        }
+
         function loadLogs() {
-            const params = new URLSearchParams();
-            if (currentSearch) params.append('search', currentSearch);
-            if (currentLines !== 200) params.append('lines', currentLines);
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
             
-            fetch('/logs?' + params.toString())
+            let url = `/logs?lines=${currentLines}`;
+            if (currentSearch) {
+                url += `&search=${encodeURIComponent(currentSearch)}`;
+            }
+            
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    logs = data || [];
-                    applyFilters();
+                    // Filter out logs that are older than the clear timestamp
+                    let filteredData = data;
+                    if (clearTimestamp) {
+                        filteredData = data.filter(log => {
+                            const logTime = new Date(log.timestamp);
+                            const clearTime = new Date(clearTimestamp);
+                            return logTime > clearTime;
+                        });
+                    }
+                    
+                    // Sort logs by timestamp (newest first)
+                    filteredData.sort((a, b) => {
+                        const timeA = new Date(a.timestamp);
+                        const timeB = new Date(b.timestamp);
+                        return timeB - timeA; // Newest first
+                    });
+                    
+                    displayLogs(filteredData);
+                    loading.style.display = 'none';
                 })
                 .catch(error => {
                     console.error('Error loading logs:', error);
+                    loading.style.display = 'none';
                 });
         }
-        
-        function renderLogs() {
+
+        function displayLogs(logs) {
             const tbody = document.getElementById('logTableBody');
             tbody.innerHTML = '';
             
-            filteredLogs.forEach((log, index) => {
+            logs.forEach(log => {
                 const row = document.createElement('tr');
-                if (log.is_recent) {
-                    row.classList.add('recent');
-                }
+                // Check if log is recent (within 5 minutes)
+                const isRecent = isLogRecent(log.timestamp);
+                row.className = isRecent ? 'recent' : '';
+                row.dataset.logData = JSON.stringify(log);
                 
                 const timeCell = document.createElement('td');
                 timeCell.className = 'col-time';
@@ -246,42 +310,47 @@
                 
                 const messageCell = document.createElement('td');
                 messageCell.className = 'col-message';
-                messageCell.textContent = log.message;
+                messageCell.textContent = log.message || '';
+                
+                const fileCell = document.createElement('td');
+                fileCell.className = 'col-file';
+                fileCell.textContent = log.json_file || (log.source_file || '');
                 
                 row.appendChild(timeCell);
                 row.appendChild(levelCell);
                 row.appendChild(codeCell);
                 row.appendChild(messageCell);
+                row.appendChild(fileCell);
                 
-                row.addEventListener('click', () => showLogDetails(log));
                 tbody.appendChild(row);
             });
+            
+            filterLogsByLevel();
         }
-        
-        function formatTime(timestamp) {
-            const now = new Date();
+
+        function isLogRecent(timestamp) {
             const logTime = new Date(timestamp);
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const logDate = new Date(logTime.getFullYear(), logTime.getMonth(), logTime.getDate());
+            const now = new Date();
+            const timeDiff = now - logTime;
+            // Consider logs within 5 minutes as recent
+            return timeDiff <= 5 * 60 * 1000;
+        }
+
+        function formatTime(timestamp) {
+            const logDate = new Date(timestamp);
+            const today = new Date();
             
-            const timeStr = logTime.toLocaleTimeString('en-US', {
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
+            const isToday = logDate.toDateString() === today.toDateString();
             
-            if (logDate.getTime() !== today.getTime()) {
-                const dateStr = logTime.toLocaleDateString('en-US', {
-                    month: '2-digit',
-                    day: '2-digit'
-                });
+            if (isToday) {
+                return logDate.toLocaleTimeString();
+            } else {
+                const dateStr = logDate.toLocaleDateString();
+                const timeStr = logDate.toLocaleTimeString();
                 return `${timeStr} (${dateStr})`;
             }
-            
-            return timeStr;
         }
-        
+
         function showLogDetails(log) {
             const panel = document.getElementById('detailsPanel');
             const content = document.getElementById('detailsContent');
@@ -289,17 +358,29 @@
             let html = `
                 <div class="detail-section">
                     <h4>Basic Information</h4>
-                    <div class="detail-row">
-                        <span class="detail-label">Timestamp:</span>
-                        <span class="detail-value">${log.timestamp}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Level:</span>
-                        <span class="detail-value"><span class="level level-${log.level.toLowerCase()}">${log.level}</span></span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Message:</span>
-                        <span class="detail-value">${log.message}</span>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Timestamp:</label>
+                            <span>${log.timestamp}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Level:</label>
+                            <span class="level level-${log.level.toLowerCase()}">${log.level}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Message:</label>
+                            <span>${log.message || 'N/A'}</span>
+                        </div>
+                        ${log.json_code ? `
+                        <div class="detail-item">
+                            <label>Code:</label>
+                            <span>${log.json_code}</span>
+                        </div>` : ''}
+                        ${log.source_file ? `
+                        <div class="detail-item">
+                            <label>Source File:</label>
+                            <span>${log.source_file}</span>
+                        </div>` : ''}
                     </div>
                 </div>
             `;
@@ -308,11 +389,28 @@
                 html += `
                     <div class="detail-section">
                         <h4>Code Location</h4>
-                        ${log.json_file ? `<div class="detail-row"><span class="detail-label">File:</span><span class="detail-value">${log.json_file}</span></div>` : ''}
-                        ${log.json_line ? `<div class="detail-row"><span class="detail-label">Line:</span><span class="detail-value">${log.json_line}</span></div>` : ''}
-                        ${log.json_class ? `<div class="detail-row"><span class="detail-label">Class:</span><span class="detail-value">${log.json_class}</span></div>` : ''}
-                        ${log.json_function ? `<div class="detail-row"><span class="detail-label">Function:</span><span class="detail-value">${log.json_function}</span></div>` : ''}
-                        ${log.json_code ? `<div class="detail-row"><span class="detail-label">Code:</span><span class="detail-value">${log.json_code}</span></div>` : ''}
+                        <div class="detail-grid">
+                            ${log.json_file ? `
+                            <div class="detail-item">
+                                <label>File:</label>
+                                <span>${log.json_file}</span>
+                            </div>` : ''}
+                            ${log.json_line ? `
+                            <div class="detail-item">
+                                <label>Line:</label>
+                                <span>${log.json_line}</span>
+                            </div>` : ''}
+                            ${log.json_class ? `
+                            <div class="detail-item">
+                                <label>Class:</label>
+                                <span>${log.json_class}</span>
+                            </div>` : ''}
+                            ${log.json_function ? `
+                            <div class="detail-item">
+                                <label>Function:</label>
+                                <span>${log.json_function}</span>
+                            </div>` : ''}
+                        </div>
                     </div>
                 `;
             }
@@ -321,8 +419,18 @@
                 html += `
                     <div class="detail-section">
                         <h4>Request Information</h4>
-                        ${log.json_request_uri ? `<div class="detail-row"><span class="detail-label">URI:</span><span class="detail-value">${log.json_request_uri}</span></div>` : ''}
-                        ${log.json_correlation_id ? `<div class="detail-row"><span class="detail-label">Correlation ID:</span><span class="detail-value">${log.json_correlation_id}</span></div>` : ''}
+                        <div class="detail-grid">
+                            ${log.json_request_uri ? `
+                            <div class="detail-item">
+                                <label>Request URI:</label>
+                                <span>${log.json_request_uri}</span>
+                            </div>` : ''}
+                            ${log.json_correlation_id ? `
+                            <div class="detail-item">
+                                <label>Correlation ID:</label>
+                                <span>${log.json_correlation_id}</span>
+                            </div>` : ''}
+                        </div>
                     </div>
                 `;
             }
@@ -330,20 +438,18 @@
             if (log.json_exception || log.json_exceptionMessage) {
                 html += `
                     <div class="detail-section">
-                        <h4>Exception Information</h4>
-                        ${log.json_exceptionMessage ? `<div class="detail-row"><span class="detail-label">Message:</span><span class="detail-value">${log.json_exceptionMessage}</span></div>` : ''}
-                        ${log.json_exception ? `<div class="detail-row"><span class="detail-label">Exception:</span><span class="detail-value"><pre>${log.json_exception}</pre></span></div>` : ''}
-                    </div>
-                `;
-            }
-            
-            if (log.source_file) {
-                html += `
-                    <div class="detail-section">
-                        <h4>Source</h4>
-                        <div class="detail-row">
-                            <span class="detail-label">File:</span>
-                            <span class="detail-value">${log.source_file}</span>
+                        <h4>Exception Details</h4>
+                        <div class="detail-grid">
+                            ${log.json_exceptionMessage ? `
+                            <div class="detail-item">
+                                <label>Exception Message:</label>
+                                <span class="exception-text">${log.json_exceptionMessage}</span>
+                            </div>` : ''}
+                            ${log.json_exception ? `
+                            <div class="detail-item">
+                                <label>Exception:</label>
+                                <span class="exception-text">${log.json_exception}</span>
+                            </div>` : ''}
                         </div>
                     </div>
                 `;
@@ -361,10 +467,30 @@
             content.innerHTML = html;
             panel.classList.add('open');
         }
-        
+
         function closeDetailsPanel() {
-            document.getElementById('detailsPanel').classList.remove('open');
+            const panel = document.getElementById('detailsPanel');
+            panel.classList.remove('open');
+        }
+        
+        // Load log source information
+        function loadLogSource() {
+            fetch('/info')
+                .then(response => response.json())
+                .then(data => {
+                    const logSourceElement = document.getElementById('logSource');
+                    if (data.is_directory) {
+                        logSourceElement.textContent = `(${data.path} - ${data.file_count} files)`;
+                    } else {
+                        logSourceElement.textContent = `(${data.path})`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading log source:', error);
+                    document.getElementById('logSource').textContent = '(Unknown source)';
+                });
         }
     </script>
+    </div>
 </body>
 </html> 
