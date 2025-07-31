@@ -55,6 +55,7 @@ var (
 	noticeEnabled    = flag.Bool("notice", false, "Show NOTICE level logs")
 	debugEnabled     = flag.Bool("debug", false, "Show DEBUG level logs")
 	errorEnabled     = flag.Bool("err", false, "Show ERROR/ERR level logs")
+	critEnabled      = flag.Bool("crit", false, "Show CRIT/CRITICAL level logs")
 	allLevels        = flag.Bool("all", false, "Show all log levels")
 	highlightMinutes = flag.Int("minutes", 1, "Number of minutes to highlight recent logs (0 to disable)")
 	logLines         = flag.Int("lines", 200, "Number of log lines to display")
@@ -66,7 +67,7 @@ var (
 func shouldShowLogLevel(level string) bool {
 	level = strings.TrimSpace(strings.ToUpper(level))
 
-	if *allLevels || (!*infoEnabled && !*warnEnabled && !*noticeEnabled && !*debugEnabled && !*errorEnabled) {
+	if *allLevels || (!*infoEnabled && !*warnEnabled && !*noticeEnabled && !*debugEnabled && !*errorEnabled && !*critEnabled) {
 		return true
 	}
 
@@ -81,6 +82,8 @@ func shouldShowLogLevel(level string) bool {
 		return *debugEnabled
 	case "ERROR", "ERR":
 		return *errorEnabled
+	case "CRIT", "CRITICAL":
+		return *critEnabled
 	default:
 		return false
 	}
@@ -136,6 +139,9 @@ func parseLogLine(line string) (*LogEntry, error) {
 	rawLevel := strings.TrimSpace(strings.ToUpper(parts[2]))
 	if rawLevel == "ERR" {
 		rawLevel = "ERROR"
+	}
+	if rawLevel == "CRITICAL" {
+		rawLevel = "CRIT"
 	}
 
 	// Extract message and JSON part
@@ -257,6 +263,9 @@ func parseOldFormat(line string) (*LogEntry, error) {
 	rawLevel = strings.TrimSpace(strings.ToUpper(rawLevel))
 	if rawLevel == "ERR" {
 		rawLevel = "ERROR"
+	}
+	if rawLevel == "CRITICAL" {
+		rawLevel = "CRIT"
 	}
 
 	timestamp := strings.TrimSpace(strings.TrimLeft(parts[0], "["))
@@ -387,11 +396,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <path-to-log-file>\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		fmt.Fprintf(os.Stderr, "  -all      Show all log levels\n")
-		fmt.Fprintf(os.Stderr, "  -info     Show INFO level logs\n")
+		fmt.Fprintf(os.Stderr, "  -crit     Show CRIT/CRITICAL level logs\n")
+		fmt.Fprintf(os.Stderr, "  -err      Show ERROR/ERR level logs\n")
 		fmt.Fprintf(os.Stderr, "  -warn     Show WARN level logs\n")
+		fmt.Fprintf(os.Stderr, "  -info     Show INFO level logs\n")
 		fmt.Fprintf(os.Stderr, "  -notice   Show NOTICE level logs\n")
 		fmt.Fprintf(os.Stderr, "  -debug    Show DEBUG level logs\n")
-		fmt.Fprintf(os.Stderr, "  -err      Show ERROR/ERR level logs\n")
 		fmt.Fprintf(os.Stderr, "  -minutes  Number of minutes to highlight recent logs (default: 1, 0 to disable)\n")
 		fmt.Fprintf(os.Stderr, "  -lines    Number of log lines to display (default: 200)\n")
 		fmt.Fprintf(os.Stderr, "  -port     Port to serve on (default: 1111)\n\n")
@@ -420,20 +430,23 @@ func main() {
 	}
 
 	var activeFilters []string
-	if *infoEnabled {
-		activeFilters = append(activeFilters, "INFO")
+	if *critEnabled {
+		activeFilters = append(activeFilters, "CRIT")
+	}
+	if *errorEnabled {
+		activeFilters = append(activeFilters, "ERROR")
 	}
 	if *warnEnabled {
 		activeFilters = append(activeFilters, "WARN")
+	}
+	if *infoEnabled {
+		activeFilters = append(activeFilters, "INFO")
 	}
 	if *noticeEnabled {
 		activeFilters = append(activeFilters, "NOTICE")
 	}
 	if *debugEnabled {
 		activeFilters = append(activeFilters, "DEBUG")
-	}
-	if *errorEnabled {
-		activeFilters = append(activeFilters, "ERROR")
 	}
 	if *allLevels || len(activeFilters) == 0 {
 		log.Printf("Showing all log levels")

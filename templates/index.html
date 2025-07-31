@@ -41,6 +41,7 @@
                     <label>Levels:</label>
                     <button id="allBtn" class="filter-btn active" data-level="all">All</button>
                     <button id="noneBtn" class="filter-btn" data-level="none">None</button>
+                    <button class="filter-btn" data-level="CRIT">CRIT</button>
                     <button class="filter-btn" data-level="ERROR">ERROR</button>
                     <button class="filter-btn" data-level="WARN">WARN</button>
                     <button class="filter-btn" data-level="INFO">INFO</button>
@@ -98,9 +99,34 @@
         let lastLogHash = '';
         let clearTimestamp = null;
 
+        // Cookie helper functions
+        function setCookie(name, value, days = 30) {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${encodeURIComponent(JSON.stringify(value))};expires=${expires.toUTCString()};path=/`;
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for(let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) {
+                    try {
+                        return JSON.parse(decodeURIComponent(c.substring(nameEQ.length, c.length)));
+                    } catch (e) {
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadLogSource();
+            loadSavedFilters();
             initializeEventListeners();
             loadLogs();
             // Start in play mode by default after a short delay
@@ -110,6 +136,33 @@
                 }
             }, 1000);
         });
+
+        function loadSavedFilters() {
+            const savedFilters = getCookie('logLevelFilters');
+            if (savedFilters && Array.isArray(savedFilters)) {
+                selectedLevels = savedFilters;
+                updateFilterButtons();
+            }
+        }
+
+        function updateFilterButtons() {
+            // Reset all buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Set active buttons based on selectedLevels
+            if (selectedLevels.includes('all')) {
+                document.getElementById('allBtn').classList.add('active');
+            } else if (selectedLevels.length === 0) {
+                document.getElementById('noneBtn').classList.add('active');
+            } else {
+                selectedLevels.forEach(level => {
+                    const btn = document.querySelector(`.filter-btn[data-level="${level}"]`);
+                    if (btn) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+        }
 
         function initializeEventListeners() {
             // Toggle button
@@ -216,6 +269,9 @@
                     btn.classList.add('active');
                 }
             }
+            
+            // Save the filter state to cookies
+            setCookie('logLevelFilters', selectedLevels);
             
             filterLogsByLevel();
         }
