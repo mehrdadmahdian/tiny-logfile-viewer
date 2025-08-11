@@ -414,6 +414,47 @@ tbody tr.recent:hover {
     margin-right: 8px;
 }
 
+/* Error message */
+.error-message {
+    display: none;
+    padding: 20px;
+    text-align: center;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    color: #721c24;
+    margin: 20px;
+}
+
+.error-message i {
+    font-size: 24px;
+    color: #dc3545;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.error-content h4 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #721c24;
+}
+
+.error-content p {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.error-actions {
+    margin-top: 16px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
 /* Details panel */
 .details-panel {
     width: 0;

@@ -73,6 +73,19 @@
                 <div class="loading" id="loading">
                     <i class="fas fa-spinner fa-spin"></i> Loading logs...
                 </div>
+                
+                <div class="error-message" id="errorMessage">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <div class="error-content">
+                        <h4>Service Unavailable</h4>
+                        <p>The log service is currently not responding. Please check if the service is running and try again.</p>
+                        <div class="error-actions">
+                            <button id="retryBtn" class="btn btn-primary btn-sm">
+                                <i class="fas fa-redo"></i> Retry
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         
             <div class="details-panel" id="detailsPanel">
@@ -202,6 +215,12 @@
                 closeDetailsPanel();
             });
 
+            // Retry button
+            document.getElementById('retryBtn').addEventListener('click', function() {
+                hideErrorMessage();
+                loadLogs();
+            });
+
             // Table row clicks
             document.getElementById('logTableBody').addEventListener('click', function(e) {
                 const row = e.target.closest('tr');
@@ -305,6 +324,7 @@
 
         function loadLogs() {
             const loading = document.getElementById('loading');
+            hideErrorMessage();
             loading.style.display = 'block';
             
             let url = `/logs?lines=${currentLines}`;
@@ -313,7 +333,12 @@
             }
             
             fetch(url)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     // Filter out logs that are older than the clear timestamp
                     let filteredData = data;
@@ -338,6 +363,7 @@
                 .catch(error => {
                     console.error('Error loading logs:', error);
                     loading.style.display = 'none';
+                    showErrorMessage();
                 });
         }
 
@@ -521,11 +547,26 @@
             const panel = document.getElementById('detailsPanel');
             panel.classList.remove('open');
         }
+
+        function showErrorMessage() {
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.style.display = 'block';
+        }
+
+        function hideErrorMessage() {
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.style.display = 'none';
+        }
         
         // Load log source information
         function loadLogSource() {
             fetch('/info')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     const logSourceElement = document.getElementById('logSource');
                     if (data.is_directory) {
@@ -536,7 +577,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading log source:', error);
-                    document.getElementById('logSource').textContent = '(Unknown source)';
+                    document.getElementById('logSource').textContent = '(Service unavailable)';
                 });
         }
     </script>

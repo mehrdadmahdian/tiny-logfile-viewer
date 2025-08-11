@@ -380,11 +380,11 @@ func readLastNLines(filePath string, n int) ([]LogEntry, error) {
 	sort.Slice(entries, func(i, j int) bool {
 		time1, err1 := parseTimestamp(entries[i].Timestamp)
 		time2, err2 := parseTimestamp(entries[j].Timestamp)
-		
+
 		if err1 != nil || err2 != nil {
 			return false
 		}
-		
+
 		return time1.After(time2)
 	})
 
